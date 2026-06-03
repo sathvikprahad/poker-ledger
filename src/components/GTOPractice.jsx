@@ -12,6 +12,8 @@ const POSITIONS_BY_N = {
   4: ['CO', 'BTN', 'SB', 'BB'],
   5: ['UTG', 'CO', 'BTN', 'SB', 'BB'],
   6: ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'],
+  7: ['UTG', 'UTG+1', 'MP', 'CO', 'BTN', 'SB', 'BB'],
+  8: ['UTG', 'UTG+1', 'MP', 'MP+1', 'CO', 'BTN', 'SB', 'BB'],
 }
 
 // ── Persistence ────────────────────────────────────────────────────────────────
@@ -189,7 +191,7 @@ function ConfigScreen({ cfg, setCfg, onStart, handsToday }) {
               const pos = POSITIONS_BY_N[n] || POSITIONS_BY_N[4]
               setCfg(c => ({ ...c, n, position: pos[Math.floor(pos.length / 2)] }))
             }}>
-            {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} players</option>)}
+            {[2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n} players</option>)}
           </select>
         </div>
 
