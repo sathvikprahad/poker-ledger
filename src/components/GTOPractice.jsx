@@ -3,6 +3,9 @@ import { createDeck, shuffle, calculateEquity, evaluate7, SUIT_SYMBOLS } from '.
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
+const d = (v) => Number(Number(v).toFixed(2))  // round floats for display
+const $d = (v) => `$${d(v)}`
+
 const HAND_LIMIT = 20
 const STACK_BB = 100
 
@@ -142,8 +145,8 @@ function EVPanel({ ev, computing }) {
   const cells = [
     { label: 'Fold', value: evFold },
     evCheck !== null ? { label: 'Check', value: evCheck } : null,
-    evCall !== null ? { label: `Call $${toCall}`, value: evCall } : null,
-    { label: `Raise $${raiseAmt}`, value: evRaise },
+    evCall !== null ? { label: `Call ${$d(toCall)}`, value: evCall } : null,
+    { label: `Raise ${$d(raiseAmt)}`, value: evRaise },
   ].filter(Boolean)
 
   return (
@@ -302,7 +305,7 @@ export default function GTOPractice() {
       bb, sb, playerPos: position, winner: null, winAmount: 0,
     }
     setGame(g)
-    setLog([{ msg: `New hand · ${position} · Pot: $${pot} (SB $${sb} / BB $${bb})`, type: 'header' }])
+    setLog([{ msg: `New hand · ${position} · Pot: ${$d(pot)} (SB ${$d(sb)} / BB ${$d(bb)})`, type: 'header' }])
     refreshEV(g)
   }
 
@@ -323,14 +326,14 @@ export default function GTOPractice() {
     }
     if (type === 'call') {
       g.pot += g.toCall; g.playerStack -= g.toCall; g.playerStreetBet += g.toCall
-      entries.push({ msg: `You call $${g.toCall}. Pot: $${g.pot}`, type: 'player' })
+      entries.push({ msg: `You call ${$d(g.toCall)}. Pot: ${$d(g.pot)}`, type: 'player' })
     } else if (type === 'check') {
       entries.push({ msg: 'You check.', type: 'player' })
     } else if (type === 'raise') {
       const cost = raiseAmt - g.playerStreetBet
       g.pot += cost; g.playerStack -= cost
       g.playerStreetBet = raiseAmt; g.currentBet = raiseAmt
-      entries.push({ msg: `You raise to $${raiseAmt}. Pot: $${g.pot}`, type: 'player' })
+      entries.push({ msg: `You raise to ${$d(raiseAmt)}. Pot: ${$d(g.pot)}`, type: 'player' })
     }
 
     // CPU actions
@@ -347,20 +350,20 @@ export default function GTOPractice() {
         entries.push({ msg: `${name} folds.`, type: 'cpu_fold' })
       } else if (dec.type === 'call') {
         g.pot += cpuToCall
-        entries.push({ msg: `${name} calls${cpuToCall > 0 ? ` $${cpuToCall}` : ''}. Pot: $${g.pot}`, type: 'cpu' })
+        entries.push({ msg: `${name} calls${cpuToCall > 0 ? ` ${$d(cpuToCall)}` : ''}. Pot: ${$d(g.pot)}`, type: 'cpu' })
       } else if (dec.type === 'check') {
         entries.push({ msg: `${name} checks.`, type: 'cpu' })
       } else if (dec.type === 'bet' || dec.type === 'raise') {
         const amt = dec.amt || g.bb * 3
         g.pot += amt; cpuRaisedAmt = Math.max(cpuRaisedAmt, amt)
-        entries.push({ msg: `${name} ${dec.type}s $${amt}. Pot: $${g.pot}`, type: 'cpu_raise' })
+        entries.push({ msg: `${name} ${dec.type}s ${$d(amt)}. Pot: ${$d(g.pot)}`, type: 'cpu_raise' })
       }
     }
 
     const stillActive = g.cpuHands.filter((_, i) => !g.cpuFolded[i]).length
     if (stillActive === 0) {
       g.winner = 'player'; g.winAmount = g.pot; g.phase = 'hand_over'
-      entries.push({ msg: `All CPUs folded! You win $${g.pot}! 🎉`, type: 'result_win' })
+      entries.push({ msg: `All CPUs folded! You win ${$d(g.pot)}! 🎉`, type: 'result_win' })
       setGame(g); setLog(l => [...l, ...entries]); setEv(null)
       recordHand(); setHandsToday(t => t + 1)
       return
@@ -368,7 +371,7 @@ export default function GTOPractice() {
 
     if (cpuRaisedAmt > 0) {
       g.toCall = cpuRaisedAmt; g.phase = 'player_react'
-      entries.push({ msg: `CPU raised — call $${cpuRaisedAmt} or fold.`, type: 'header' })
+      entries.push({ msg: `CPU raised — call ${$d(cpuRaisedAmt)} or fold.`, type: 'header' })
       setGame(g); setLog(l => [...l, ...entries])
       refreshEV(g)
       return
@@ -392,7 +395,7 @@ export default function GTOPractice() {
     }
 
     g.pot += g.toCall; g.playerStack -= g.toCall
-    entries.push({ msg: `You call $${g.toCall}. Pot: $${g.pot}`, type: 'player' })
+    entries.push({ msg: `You call ${$d(g.toCall)}. Pot: ${$d(g.pot)}`, type: 'player' })
     const stillActive = g.cpuHands.filter((_, i) => !g.cpuFolded[i]).length
     advanceStreet(g, entries, stillActive)
   }
@@ -420,7 +423,7 @@ export default function GTOPractice() {
       ng.winner = winner; ng.winAmount = g.pot; ng.phase = 'hand_over'
       entries.push({ msg: '— SHOWDOWN —', type: 'street' })
       entries.push({
-        msg: winner === 'player' ? `You win $${g.pot}! 🎉` : `CPU ${cpuIdx + 1} wins $${g.pot}.`,
+        msg: winner === 'player' ? `You win ${$d(g.pot)}! 🎉` : `CPU ${cpuIdx + 1} wins ${$d(g.pot)}.`,
         type: winner === 'player' ? 'result_win' : 'result',
       })
       setGame(ng); setLog(l => [...l, ...entries]); setEv(null)
@@ -449,7 +452,7 @@ export default function GTOPractice() {
       <div className="card p-4">
         <div className="flex items-center justify-between mb-4">
           <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{street}</span>
-          <span className="text-yellow-400 font-bold font-mono">Pot: ${pot}</span>
+          <span className="text-yellow-400 font-bold font-mono">Pot: {$d(pot)}</span>
         </div>
 
         {/* CPU hands */}
@@ -477,7 +480,7 @@ export default function GTOPractice() {
         {/* Player hand */}
         <div className="text-center">
           <p className="text-xs text-gray-400 mb-1.5">
-            Your hand ({game.playerPos}) · Stack: ${playerStack}
+            Your hand ({game.playerPos}) · Stack: {$d(playerStack)}
           </p>
           <div className="flex gap-2 justify-center">
             {playerHand.map((c, i) => <CardFace key={i} card={c} lg />)}
@@ -501,7 +504,7 @@ export default function GTOPractice() {
             <button
               onClick={() => react('call')}
               className="flex-1 py-2.5 rounded border border-blue-800/60 bg-blue-950/20 text-blue-400 font-medium text-sm hover:bg-blue-950/40 transition-colors">
-              Call ${toCall}
+              Call {$d(toCall)}
             </button>
           ) : (
             <>
@@ -515,13 +518,13 @@ export default function GTOPractice() {
                 <button
                   onClick={() => act('call')}
                   className="flex-1 py-2.5 rounded border border-blue-800/60 bg-blue-950/20 text-blue-400 font-medium text-sm hover:bg-blue-950/40 transition-colors">
-                  Call ${toCall}
+                  Call {$d(toCall)}
                 </button>
               )}
               <button
                 onClick={() => act('raise', ev?.raiseAmt ?? bb * 3)}
                 className="flex-1 py-2.5 rounded border border-green-800/60 bg-green-950/20 text-green-400 font-medium text-sm hover:bg-green-950/40 transition-colors">
-                Raise ${ev?.raiseAmt ?? bb * 3}
+                Raise {$d(ev?.raiseAmt ?? bb * 3)}
               </button>
             </>
           )}
@@ -532,7 +535,7 @@ export default function GTOPractice() {
       {isOver && (
         <div className={`card p-4 text-center border-2 ${winner === 'player' ? 'border-green-700 bg-green-950/10' : 'border-red-800 bg-red-950/10'}`}>
           <p className={`text-xl font-bold mb-1 ${winner === 'player' ? 'text-green-400' : 'text-red-400'}`}>
-            {winner === 'player' ? `You win $${winAmount}! 🎉` : `CPUs win $${winAmount}`}
+            {winner === 'player' ? `You win ${$d(winAmount)}! 🎉` : `CPUs win ${$d(winAmount)}`}
           </p>
           <p className="text-gray-600 text-xs mb-3">{HAND_LIMIT - handsToday} hands remaining today</p>
           {handsToday < HAND_LIMIT ? (
