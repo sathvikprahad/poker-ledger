@@ -4,6 +4,7 @@ import {
   calculateEquity, evaluate7,
   GRID_RANKS, handStr, OPEN_RANGES, QUIZ_QUESTIONS,
 } from '../lib/poker'
+import GTOPractice from './GTOPractice'
 
 // ── Card picker ────────────────────────────────────────────────────────────────
 
@@ -332,6 +333,7 @@ const TABS = [
   { id: 'equity', label: '⚡ Equity Calc' },
   { id: 'ranges', label: '📊 Range Charts' },
   { id: 'quiz', label: '🧠 Hand Quiz' },
+  { id: 'practice', label: '🎮 Practice' },
 ]
 
 export default function GTO() {
@@ -355,11 +357,14 @@ export default function GTO() {
         ))}
       </div>
 
-      <div className="card p-5">
-        {tab === 'equity' && <EquityCalc />}
-        {tab === 'ranges' && <RangeChart />}
-        {tab === 'quiz' && <HandQuiz />}
-      </div>
+      {tab !== 'practice' && (
+        <div className="card p-5">
+          {tab === 'equity' && <EquityCalc />}
+          {tab === 'ranges' && <RangeChart />}
+          {tab === 'quiz' && <HandQuiz />}
+        </div>
+      )}
+      {tab === 'practice' && <GTOPractice />}
     </div>
   )
 }
