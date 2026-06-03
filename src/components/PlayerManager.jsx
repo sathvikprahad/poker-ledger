@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import Avatar from './Avatar'
 
@@ -6,8 +6,8 @@ export default function PlayerManager({ players, onDataChange }) {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState(null)
-  const [editingAvatar, setEditingAvatar] = useState(null) // player id
-  const [avatarUrl, setAvatarUrl] = useState('')
+  const [uploadingId, setUploadingId] = useState(null)
+  const fileInputRefs = useRef({})
 
   const toast = (text, type = 'success') => {
     setMsg({ text, type })
@@ -46,23 +46,37 @@ export default function PlayerManager({ players, onDataChange }) {
     }
   }
 
-  const startEditAvatar = (player) => {
-    setEditingAvatar(player.id)
-    setAvatarUrl(player.avatar_url || '')
-  }
+  const handlePhotoChange = async (player, file) => {
+    if (!file) return
+    setUploadingId(player.id)
 
-  const saveAvatar = async (player) => {
-    const { error } = await supabase
+    const ext = file.name.split('.').pop() || 'jpg'
+    const path = `${player.id}.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true, contentType: file.type })
+
+    if (uploadError) {
+      toast(`Upload failed: ${uploadError.message}`, 'error')
+      setUploadingId(null)
+      return
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+
+    const { error: updateError } = await supabase
       .from('players')
-      .update({ avatar_url: avatarUrl.trim() || null })
+      .update({ avatar_url: publicUrl })
       .eq('id', player.id)
-    if (error) {
-      toast(`Error: ${error.message}`, 'error')
+
+    if (updateError) {
+      toast(`Error saving photo: ${updateError.message}`, 'error')
     } else {
-      toast('Photo updated!')
-      setEditingAvatar(null)
+      toast(`${player.name}'s photo updated!`)
       onDataChange()
     }
+    setUploadingId(null)
   }
 
   return (
@@ -112,52 +126,48 @@ export default function PlayerManager({ players, onDataChange }) {
         ) : (
           <div className="divide-y divide-gray-800">
             {players.map((player) => (
-              <div key={player.id} className="px-4 py-3 space-y-2">
-                <div className="flex items-center gap-3">
-                  <Avatar player={player} size="md" />
-                  <span className="text-gray-100 font-medium flex-1">{player.name}</span>
-                  <button
-                    onClick={() =>
-                      editingAvatar === player.id
-                        ? setEditingAvatar(null)
-                        : startEditAvatar(player)
-                    }
-                    className="text-sm text-gray-400 hover:text-green-400 px-2 py-1 rounded
-                               hover:bg-gray-800 transition-colors"
-                  >
-                    {editingAvatar === player.id ? 'Cancel' : '📷 Photo'}
-                  </button>
-                  <button
-                    onClick={() => removePlayer(player)}
-                    className="text-sm text-red-500 hover:text-red-400 px-2 py-1 rounded
-                               hover:bg-red-900/30 transition-colors"
-                  >
-                    Remove
-                  </button>
-                </div>
+              <div key={player.id} className="flex items-center gap-3 px-4 py-3">
+                {/* Hidden file input — opens camera roll on mobile */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  ref={(el) => (fileInputRefs.current[player.id] = el)}
+                  onChange={(e) => handlePhotoChange(player, e.target.files[0])}
+                />
 
-                {editingAvatar === player.id && (
-                  <div className="flex gap-2 pl-12">
-                    <input
-                      type="url"
-                      value={avatarUrl}
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                      className="input text-sm"
-                      placeholder="Paste image URL (e.g. from Twitter/Instagram)"
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => saveAvatar(player)}
-                      className="btn-primary whitespace-nowrap text-sm"
-                    >
-                      Save
-                    </button>
+                {/* Clicking the avatar opens the file picker */}
+                <button
+                  onClick={() => fileInputRefs.current[player.id]?.click()}
+                  disabled={uploadingId === player.id}
+                  className="relative flex-shrink-0 group"
+                  title="Change photo"
+                >
+                  <Avatar player={player} size="md" />
+                  <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center
+                                  opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white font-medium">
+                    {uploadingId === player.id ? '...' : '📷'}
                   </div>
+                </button>
+
+                <span className="text-gray-100 font-medium flex-1">{player.name}</span>
+
+                {uploadingId === player.id && (
+                  <span className="text-xs text-gray-400">Uploading...</span>
                 )}
+
+                <button
+                  onClick={() => removePlayer(player)}
+                  className="text-sm text-red-500 hover:text-red-400 px-2 py-1 rounded
+                             hover:bg-red-900/30 transition-colors flex-shrink-0"
+                >
+                  Remove
+                </button>
               </div>
             ))}
           </div>
         )}
+        <p className="text-xs text-gray-600 text-center py-2">Tap an avatar to change photo</p>
       </div>
     </div>
   )
