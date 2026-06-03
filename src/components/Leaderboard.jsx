@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { computePlayerStats, fmt, profitClass } from '../lib/utils'
+import Avatar from './Avatar'
 
 export default function Leaderboard({ players, sessions }) {
   const ranked = useMemo(
@@ -34,16 +35,22 @@ export default function Leaderboard({ players, sessions }) {
       {hasData && ranked.length > 1 && (
         <div className="grid grid-cols-2 gap-4">
           <div className="card p-4 border-yellow-800/60 bg-gradient-to-br from-gray-900 to-yellow-950/40">
-            <div className="text-3xl mb-1">🏆</div>
+            <div className="text-3xl mb-2">🏆</div>
+            <div className="flex items-center gap-2 mb-1">
+              <Avatar player={winner} size="sm" />
+              <p className="font-bold text-yellow-300 text-lg truncate">{winner.name}</p>
+            </div>
             <p className="text-xs text-gray-400 uppercase tracking-wide">Biggest Winner</p>
-            <p className="font-bold text-yellow-300 text-lg mt-0.5 truncate">{winner.name}</p>
-            <p className="text-green-400 font-mono font-semibold">{fmt(winner.totalProfit)}</p>
+            <p className="text-green-400 font-mono font-semibold mt-0.5">{fmt(winner.totalProfit)}</p>
           </div>
           <div className="card p-4 border-red-900/60 bg-gradient-to-br from-gray-900 to-red-950/40">
-            <div className="text-3xl mb-1">💀</div>
+            <div className="text-3xl mb-2">💀</div>
+            <div className="flex items-center gap-2 mb-1">
+              <Avatar player={loser} size="sm" />
+              <p className="font-bold text-red-300 text-lg truncate">{loser.name}</p>
+            </div>
             <p className="text-xs text-gray-400 uppercase tracking-wide">Biggest Loser</p>
-            <p className="font-bold text-red-300 text-lg mt-0.5 truncate">{loser.name}</p>
-            <p className="text-red-400 font-mono font-semibold">{fmt(loser.totalProfit)}</p>
+            <p className="text-red-400 font-mono font-semibold mt-0.5">{fmt(loser.totalProfit)}</p>
           </div>
         </div>
       )}
@@ -73,6 +80,8 @@ export default function Leaderboard({ players, sessions }) {
                     <span className="text-gray-500 font-mono text-sm font-bold">#{index + 1}</span>
                   )}
                 </div>
+
+                <Avatar player={player} size="md" />
 
                 <div className="flex-1 min-w-0">
                   <p

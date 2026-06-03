@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import Avatar from './Avatar'
 
 export default function PlayerManager({ players, onDataChange }) {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [editingAvatar, setEditingAvatar] = useState(null) // player id
+  const [avatarUrl, setAvatarUrl] = useState('')
 
   const toast = (text, type = 'success') => {
     setMsg({ text, type })
@@ -39,6 +42,25 @@ export default function PlayerManager({ players, onDataChange }) {
       toast(`Error: ${error.message}`, 'error')
     } else {
       toast(`${player.name} removed.`)
+      onDataChange()
+    }
+  }
+
+  const startEditAvatar = (player) => {
+    setEditingAvatar(player.id)
+    setAvatarUrl(player.avatar_url || '')
+  }
+
+  const saveAvatar = async (player) => {
+    const { error } = await supabase
+      .from('players')
+      .update({ avatar_url: avatarUrl.trim() || null })
+      .eq('id', player.id)
+    if (error) {
+      toast(`Error: ${error.message}`, 'error')
+    } else {
+      toast('Photo updated!')
+      setEditingAvatar(null)
       onDataChange()
     }
   }
@@ -90,15 +112,48 @@ export default function PlayerManager({ players, onDataChange }) {
         ) : (
           <div className="divide-y divide-gray-800">
             {players.map((player) => (
-              <div key={player.id} className="flex items-center justify-between px-4 py-3">
-                <span className="text-gray-100 font-medium">{player.name}</span>
-                <button
-                  onClick={() => removePlayer(player)}
-                  className="text-sm text-red-500 hover:text-red-400 px-2 py-1 rounded
-                             hover:bg-red-900/30 transition-colors"
-                >
-                  Remove
-                </button>
+              <div key={player.id} className="px-4 py-3 space-y-2">
+                <div className="flex items-center gap-3">
+                  <Avatar player={player} size="md" />
+                  <span className="text-gray-100 font-medium flex-1">{player.name}</span>
+                  <button
+                    onClick={() =>
+                      editingAvatar === player.id
+                        ? setEditingAvatar(null)
+                        : startEditAvatar(player)
+                    }
+                    className="text-sm text-gray-400 hover:text-green-400 px-2 py-1 rounded
+                               hover:bg-gray-800 transition-colors"
+                  >
+                    {editingAvatar === player.id ? 'Cancel' : '📷 Photo'}
+                  </button>
+                  <button
+                    onClick={() => removePlayer(player)}
+                    className="text-sm text-red-500 hover:text-red-400 px-2 py-1 rounded
+                               hover:bg-red-900/30 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                {editingAvatar === player.id && (
+                  <div className="flex gap-2 pl-12">
+                    <input
+                      type="url"
+                      value={avatarUrl}
+                      onChange={(e) => setAvatarUrl(e.target.value)}
+                      className="input text-sm"
+                      placeholder="Paste image URL (e.g. from Twitter/Instagram)"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => saveAvatar(player)}
+                      className="btn-primary whitespace-nowrap text-sm"
+                    >
+                      Save
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { computePlayerStats, fmt, profitClass, formatDate, getProfit } from '../lib/utils'
+import Avatar from './Avatar'
 
 export default function PlayerStats({ players, sessions }) {
   const [selected, setSelected] = useState(null)
@@ -38,8 +39,11 @@ export default function PlayerStats({ players, sessions }) {
               selected === player.id ? 'border-green-600 bg-green-950/20' : ''
             }`}
           >
-            <p className="font-semibold text-gray-100 truncate">{player.name}</p>
-            <p className={`font-mono font-bold text-lg mt-1 ${profitClass(player.totalProfit)}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <Avatar player={player} size="md" />
+              <p className="font-semibold text-gray-100 truncate">{player.name}</p>
+            </div>
+            <p className={`font-mono font-bold text-lg ${profitClass(player.totalProfit)}`}>
               {fmt(player.totalProfit)}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">{player.sessionsPlayed} sessions</p>
@@ -50,7 +54,10 @@ export default function PlayerStats({ players, sessions }) {
       {selectedStats && (
         <div className="card p-5 space-y-5">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h3 className="font-bold text-xl text-gray-100">{selectedStats.name}</h3>
+            <div className="flex items-center gap-3">
+              <Avatar player={selectedStats} size="lg" />
+              <h3 className="font-bold text-xl text-gray-100">{selectedStats.name}</h3>
+            </div>
             <StreakBadge streak={selectedStats.streak} />
           </div>
 
