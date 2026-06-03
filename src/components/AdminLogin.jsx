@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 // Change this to whatever password you want
-const ADMIN_PASSWORD = 'poker2024'
+const ADMIN_PASSWORD = 'poker'
 
 export default function AdminLogin({ onLogin, onBack }) {
   const [password, setPassword] = useState('')
