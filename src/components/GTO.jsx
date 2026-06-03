@@ -238,13 +238,20 @@ function RangeChart() {
 
 // ── Hand Quiz ──────────────────────────────────────────────────────────────────
 
+const QUIZ_PER_SESSION = 15
+
+function sampleQuestions() {
+  return [...QUIZ_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, QUIZ_PER_SESSION)
+}
+
 function HandQuiz() {
+  const [questions, setQuestions] = useState(sampleQuestions)
   const [qIdx, setQIdx] = useState(0)
   const [selected, setSelected] = useState(null)
   const [score, setScore] = useState(0)
   const [done, setDone] = useState(false)
 
-  const q = QUIZ_QUESTIONS[qIdx]
+  const q = questions[qIdx]
   const answered = selected !== null
 
   const pick = (i) => {
@@ -254,7 +261,7 @@ function HandQuiz() {
   }
 
   const next = () => {
-    if (qIdx + 1 >= QUIZ_QUESTIONS.length) {
+    if (qIdx + 1 >= QUIZ_PER_SESSION) {
       setDone(true)
     } else {
       setQIdx((i) => i + 1)
@@ -262,14 +269,14 @@ function HandQuiz() {
     }
   }
 
-  const restart = () => { setQIdx(0); setSelected(null); setScore(0); setDone(false) }
+  const restart = () => { setQuestions(sampleQuestions()); setQIdx(0); setSelected(null); setScore(0); setDone(false) }
 
   if (done) {
-    const pct = Math.round((score / QUIZ_QUESTIONS.length) * 100)
+    const pct = Math.round((score / QUIZ_PER_SESSION) * 100)
     return (
       <div className="text-center py-10 space-y-4">
         <div className="text-6xl">{pct >= 70 ? '🏆' : pct >= 50 ? '📚' : '😬'}</div>
-        <h3 className="text-2xl font-bold text-gray-100">{score}/{QUIZ_QUESTIONS.length} correct</h3>
+        <h3 className="text-2xl font-bold text-gray-100">{score}/{QUIZ_PER_SESSION} correct</h3>
         <p className="text-gray-400">
           {pct >= 80 ? 'GTO master! Your opponents are in trouble.' :
            pct >= 60 ? 'Solid fundamentals. Keep studying the spots you missed.' :
@@ -283,12 +290,12 @@ function HandQuiz() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-500">Question {qIdx + 1} of {QUIZ_QUESTIONS.length}</p>
+        <p className="text-xs text-gray-500">Question {qIdx + 1} of {QUIZ_PER_SESSION} <span className="text-gray-600">(from 200-question pool)</span></p>
         <p className="text-xs text-green-400 font-semibold">{score} correct</p>
       </div>
       <div className="w-full bg-gray-800 rounded-full h-1.5">
         <div className="bg-green-600 h-1.5 rounded-full transition-all"
-          style={{ width: `${((qIdx) / QUIZ_QUESTIONS.length) * 100}%` }} />
+          style={{ width: `${(qIdx / QUIZ_PER_SESSION) * 100}%` }} />
       </div>
 
       <div className="card p-5">
@@ -320,7 +327,7 @@ function HandQuiz() {
 
       {answered && (
         <button onClick={next} className="btn-primary w-full">
-          {qIdx + 1 >= QUIZ_QUESTIONS.length ? 'See Results' : 'Next Question →'}
+          {qIdx + 1 >= QUIZ_PER_SESSION ? 'See Results' : 'Next Question →'}
         </button>
       )}
     </div>
