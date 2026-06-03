@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { computePlayerStats, fmt, profitClass, formatDate, getProfit } from '../lib/utils'
+import { computeAchievements } from '../lib/achievements'
 import Avatar from './Avatar'
 
 export default function PlayerStats({ players, sessions }) {
@@ -65,6 +66,9 @@ export default function PlayerStats({ players, sessions }) {
             </div>
             <button onClick={() => setSelected(null)} className="text-gray-500 hover:text-gray-300 text-sm">✕ Close</button>
           </div>
+
+          {/* Achievements */}
+          <AchievementBadges playerId={selectedStats.id} sessions={sessions} />
 
           {/* Stats summary */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-5 border-b border-gray-800">
@@ -149,6 +153,25 @@ function StatCard({ label, value, colorClass = 'text-gray-100' }) {
     <div className="bg-gray-800/60 rounded-lg p-3">
       <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{label}</p>
       <p className={`font-mono font-bold text-lg ${colorClass}`}>{value}</p>
+    </div>
+  )
+}
+
+function AchievementBadges({ playerId, sessions }) {
+  const badges = useMemo(() => computeAchievements(playerId, sessions), [playerId, sessions])
+  if (badges.length === 0) return null
+  return (
+    <div className="px-5 py-4 border-b border-gray-800">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Achievements</p>
+      <div className="flex flex-wrap gap-2">
+        {badges.map((b) => (
+          <div key={b.name} title={b.desc}
+            className="flex items-center gap-1.5 bg-gray-800/70 border border-gray-700/60 rounded-full px-3 py-1 text-sm">
+            <span>{b.emoji}</span>
+            <span className="text-gray-200 font-medium">{b.name}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

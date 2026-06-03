@@ -7,12 +7,14 @@ import SessionHistory from './components/SessionHistory'
 import ProfitChart from './components/ProfitChart'
 import AdminLogin from './components/AdminLogin'
 import AdminDashboard from './components/AdminDashboard'
+import GTO from './components/GTO'
 
 const PUBLIC_TABS = [
   { id: 'leaderboard', label: '🏆 Leaderboard' },
   { id: 'players', label: '👤 Players' },
   { id: 'sessions', label: '🃏 Sessions' },
   { id: 'chart', label: '📈 Chart' },
+  { id: 'gto', label: '🎮 GTO' },
 ]
 
 export default function App() {
@@ -95,6 +97,7 @@ export default function App() {
           {tab === 'players' && <PlayerStats players={players} sessions={sessions} />}
           {tab === 'sessions' && <SessionHistory sessions={sessions} />}
           {tab === 'chart' && <ProfitChart players={players} sessions={sessions} />}
+          {tab === 'gto' && <GTO />}
         </main>
       )}
 
