@@ -3,6 +3,16 @@ import { supabase } from '../lib/supabase'
 
 const todayStr = () => new Date().toISOString().split('T')[0]
 
+const DEFAULT_PLAYER_STATE = {
+  active: false,
+  buyin: '',
+  cashout: '',
+  biggest_hand_won: '',
+  biggest_hand_won_from: '',
+  biggest_hand_lost: '',
+  biggest_hand_lost_to: '',
+}
+
 export default function SessionLogger({ players, onDataChange }) {
   const [date, setDate] = useState(todayStr())
   const [location, setLocation] = useState('')
@@ -16,8 +26,7 @@ export default function SessionLogger({ players, onDataChange }) {
     setTimeout(() => setMsg(null), 4000)
   }
 
-  const getState = (id) =>
-    playerData[id] || { active: false, buyin: '', cashout: '' }
+  const getState = (id) => playerData[id] || { ...DEFAULT_PLAYER_STATE }
 
   const toggle = (id) =>
     setPlayerData((prev) => ({
@@ -65,6 +74,10 @@ export default function SessionLogger({ players, onDataChange }) {
         player_id: p.id,
         buyin: Number(s.buyin),
         cashout: Number(s.cashout),
+        biggest_hand_won: s.biggest_hand_won ? Number(s.biggest_hand_won) : null,
+        biggest_hand_won_from: s.biggest_hand_won_from || null,
+        biggest_hand_lost: s.biggest_hand_lost ? Number(s.biggest_hand_lost) : null,
+        biggest_hand_lost_to: s.biggest_hand_lost_to || null,
       }
     })
 
@@ -103,13 +116,7 @@ export default function SessionLogger({ players, onDataChange }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="label">Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="input"
-              required
-            />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input" required />
           </div>
           <div>
             <label className="label">Location</label>
@@ -138,45 +145,31 @@ export default function SessionLogger({ players, onDataChange }) {
       <div className="card p-5">
         <h3 className="font-semibold text-gray-200 mb-4">
           Who played?{' '}
-          <span className="text-sm font-normal text-gray-500">
-            ({activePlayers.length} selected)
-          </span>
+          <span className="text-sm font-normal text-gray-500">({activePlayers.length} selected)</span>
         </h3>
         {players.length === 0 ? (
-          <p className="text-gray-500 text-sm">No players added yet. Add some players first.</p>
+          <p className="text-gray-500 text-sm">No players added yet.</p>
         ) : (
           <div className="space-y-2">
             {players.map((player) => {
               const state = getState(player.id)
+              const otherPlayers = players.filter((p) => p.id !== player.id)
               return (
                 <div
                   key={player.id}
                   className={`rounded-lg border transition-all ${
-                    state.active
-                      ? 'border-green-700/60 bg-green-950/25'
-                      : 'border-gray-800 bg-gray-800/20'
+                    state.active ? 'border-green-700/60 bg-green-950/25' : 'border-gray-800 bg-gray-800/20'
                   }`}
                 >
-                  <div
-                    className="flex items-center gap-3 p-3 cursor-pointer"
-                    onClick={() => toggle(player.id)}
-                  >
+                  <div className="flex items-center gap-3 p-3 cursor-pointer" onClick={() => toggle(player.id)}>
                     <div
                       className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                        state.active
-                          ? 'bg-green-600 border-green-600'
-                          : 'border-gray-600'
+                        state.active ? 'bg-green-600 border-green-600' : 'border-gray-600'
                       }`}
                     >
                       {state.active && (
                         <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                          <path
-                            d="M2 6l3 3 5-5"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
+                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                     </div>
@@ -184,32 +177,80 @@ export default function SessionLogger({ players, onDataChange }) {
                   </div>
 
                   {state.active && (
-                    <div className="grid grid-cols-2 gap-3 px-3 pb-3">
-                      <div>
-                        <label className="label">Buy-in ($)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={state.buyin}
-                          onChange={(e) => setField(player.id, 'buyin', e.target.value)}
-                          className="input"
-                          placeholder="100"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                    <div className="px-3 pb-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+                      {/* Buy-in / Cash-out */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="label">Buy-in ($)</label>
+                          <input
+                            type="number" min="0" step="0.01"
+                            value={state.buyin}
+                            onChange={(e) => setField(player.id, 'buyin', e.target.value)}
+                            className="input" placeholder="100"
+                          />
+                        </div>
+                        <div>
+                          <label className="label">Cash-out ($)</label>
+                          <input
+                            type="number" min="0" step="0.01"
+                            value={state.cashout}
+                            onChange={(e) => setField(player.id, 'cashout', e.target.value)}
+                            className="input" placeholder="150"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="label">Cash-out ($)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={state.cashout}
-                          onChange={(e) => setField(player.id, 'cashout', e.target.value)}
-                          className="input"
-                          placeholder="150"
-                          onClick={(e) => e.stopPropagation()}
-                        />
+
+                      {/* Hand details */}
+                      <div className="border-t border-gray-700/50 pt-3">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                          Hand Details <span className="font-normal text-gray-600">(optional)</span>
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="label">Biggest hand won ($)</label>
+                            <input
+                              type="number" min="0" step="0.01"
+                              value={state.biggest_hand_won}
+                              onChange={(e) => setField(player.id, 'biggest_hand_won', e.target.value)}
+                              className="input" placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="label">Won from</label>
+                            <select
+                              value={state.biggest_hand_won_from}
+                              onChange={(e) => setField(player.id, 'biggest_hand_won_from', e.target.value)}
+                              className="input bg-gray-800"
+                            >
+                              <option value="">— select —</option>
+                              {otherPlayers.map((p) => (
+                                <option key={p.id} value={p.name}>{p.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="label">Biggest hand lost ($)</label>
+                            <input
+                              type="number" min="0" step="0.01"
+                              value={state.biggest_hand_lost}
+                              onChange={(e) => setField(player.id, 'biggest_hand_lost', e.target.value)}
+                              className="input" placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="label">Lost to</label>
+                            <select
+                              value={state.biggest_hand_lost_to}
+                              onChange={(e) => setField(player.id, 'biggest_hand_lost_to', e.target.value)}
+                              className="input bg-gray-800"
+                            >
+                              <option value="">— select —</option>
+                              {otherPlayers.map((p) => (
+                                <option key={p.id} value={p.name}>{p.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -222,27 +263,15 @@ export default function SessionLogger({ players, onDataChange }) {
 
       {activePlayers.length > 0 && (
         <div className="card p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Preview
-          </p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Preview</p>
           <div className="space-y-1.5">
             {activePlayers.map((p) => {
               const s = getState(p.id)
-              const buyin = Number(s.buyin) || 0
-              const cashout = Number(s.cashout) || 0
-              const profit = cashout - buyin
+              const profit = (Number(s.cashout) || 0) - (Number(s.buyin) || 0)
               return (
                 <div key={p.id} className="flex justify-between text-sm">
                   <span className="text-gray-300">{p.name}</span>
-                  <span
-                    className={`font-mono font-semibold ${
-                      profit > 0
-                        ? 'text-green-400'
-                        : profit < 0
-                        ? 'text-red-400'
-                        : 'text-gray-400'
-                    }`}
-                  >
+                  <span className={`font-mono font-semibold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {profit >= 0 ? '+' : ''}${profit.toFixed(2)}
                   </span>
                 </div>
@@ -252,11 +281,7 @@ export default function SessionLogger({ players, onDataChange }) {
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={loading || activePlayers.length === 0}
-        className="btn-primary w-full py-3 text-base"
-      >
+      <button type="submit" disabled={loading || activePlayers.length === 0} className="btn-primary w-full py-3 text-base">
         {loading ? 'Saving...' : '💾 Log Session'}
       </button>
     </form>

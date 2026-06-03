@@ -126,6 +126,10 @@ function EditForm({ session, players, onSave, onMsg }) {
         active: !!existing,
         buyin: existing ? String(existing.buyin) : '',
         cashout: existing ? String(existing.cashout) : '',
+        biggest_hand_won: existing?.biggest_hand_won ? String(existing.biggest_hand_won) : '',
+        biggest_hand_won_from: existing?.biggest_hand_won_from || '',
+        biggest_hand_lost: existing?.biggest_hand_lost ? String(existing.biggest_hand_lost) : '',
+        biggest_hand_lost_to: existing?.biggest_hand_lost_to || '',
         resultId: existing?.id || null,
       }
     })
@@ -171,6 +175,10 @@ function EditForm({ session, players, onSave, onMsg }) {
         const payload = {
           buyin: Number(state.buyin) || 0,
           cashout: Number(state.cashout) || 0,
+          biggest_hand_won: state.biggest_hand_won ? Number(state.biggest_hand_won) : null,
+          biggest_hand_won_from: state.biggest_hand_won_from || null,
+          biggest_hand_lost: state.biggest_hand_lost ? Number(state.biggest_hand_lost) : null,
+          biggest_hand_lost_to: state.biggest_hand_lost_to || null,
         }
         if (existing) {
           await supabase.from('session_results').update(payload).eq('id', existing.id)
@@ -257,30 +265,55 @@ function EditForm({ session, players, onSave, onMsg }) {
                 <span className="font-medium text-gray-100 select-none">{player.name}</span>
               </div>
               {state.active && (
-                <div className="grid grid-cols-2 gap-3 px-3 pb-3">
-                  <div>
-                    <label className="label">Buy-in ($)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={state.buyin}
-                      onChange={(e) => setField(player.id, 'buyin', e.target.value)}
-                      className="input"
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                <div className="px-3 pb-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label">Buy-in ($)</label>
+                      <input type="number" min="0" step="0.01" value={state.buyin}
+                        onChange={(e) => setField(player.id, 'buyin', e.target.value)} className="input" />
+                    </div>
+                    <div>
+                      <label className="label">Cash-out ($)</label>
+                      <input type="number" min="0" step="0.01" value={state.cashout}
+                        onChange={(e) => setField(player.id, 'cashout', e.target.value)} className="input" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="label">Cash-out ($)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={state.cashout}
-                      onChange={(e) => setField(player.id, 'cashout', e.target.value)}
-                      className="input"
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                  <div className="border-t border-gray-700/50 pt-3">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                      Hand Details <span className="font-normal text-gray-600">(optional)</span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="label">Biggest hand won ($)</label>
+                        <input type="number" min="0" step="0.01" value={state.biggest_hand_won}
+                          onChange={(e) => setField(player.id, 'biggest_hand_won', e.target.value)} className="input" placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="label">Won from</label>
+                        <select value={state.biggest_hand_won_from}
+                          onChange={(e) => setField(player.id, 'biggest_hand_won_from', e.target.value)} className="input bg-gray-800">
+                          <option value="">— select —</option>
+                          {players.filter((p) => p.id !== player.id).map((p) => (
+                            <option key={p.id} value={p.name}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label">Biggest hand lost ($)</label>
+                        <input type="number" min="0" step="0.01" value={state.biggest_hand_lost}
+                          onChange={(e) => setField(player.id, 'biggest_hand_lost', e.target.value)} className="input" placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="label">Lost to</label>
+                        <select value={state.biggest_hand_lost_to}
+                          onChange={(e) => setField(player.id, 'biggest_hand_lost_to', e.target.value)} className="input bg-gray-800">
+                          <option value="">— select —</option>
+                          {players.filter((p) => p.id !== player.id).map((p) => (
+                            <option key={p.id} value={p.name}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
