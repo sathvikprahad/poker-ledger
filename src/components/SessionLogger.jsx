@@ -261,41 +261,121 @@ export default function SessionLogger({ players, onDataChange }) {
         )}
       </div>
 
-      {activePlayers.length > 0 && (
-        <div className="card p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Preview</p>
-          <div className="space-y-1.5">
-            {activePlayers.map((p) => {
-              const s = getState(p.id)
-              const profit = (Number(s.cashout) || 0) - (Number(s.buyin) || 0)
-              return (
-                <div key={p.id} className="flex justify-between text-sm">
-                  <span className="text-gray-300">{p.name}</span>
-                  <span className={`font-mono font-semibold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {profit >= 0 ? '+' : ''}${profit.toFixed(2)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-          {(() => {
-            const total = activePlayers.reduce((sum, p) => {
-              const s = getState(p.id)
-              return sum + ((Number(s.cashout) || 0) - (Number(s.buyin) || 0))
-            }, 0)
-            const diff = Math.round(total * 100) / 100
-            return (
-              <div className={`mt-3 pt-3 border-t border-gray-700 text-sm font-semibold text-center ${
-                diff === 0 ? 'text-green-400' : 'text-yellow-400'
-              }`}>
-                {diff === 0
-                  ? 'Profits and Losses are correct'
-                  : `Pot off by ${diff > 0 ? '+' : '-'}$${Math.abs(diff).toFixed(2)}`}
+      {activePlayers.length > 0 && (() => {
+        const ZELLE_APPLE = new Set(['Dudy'])
+        const APPLE_ONLY  = new Set(['Drinu', 'Pranav'])
+
+        function paymentMethod(payer, receiver) {
+          if (ZELLE_APPLE.has(payer) || ZELLE_APPLE.has(receiver)) return 'Zelle/Apple Cash'
+          if (APPLE_ONLY.has(payer)  || APPLE_ONLY.has(receiver))  return 'Apple Cash'
+          return 'Venmo'
+        }
+
+        const players_with_net = activePlayers.map((p) => {
+          const s = getState(p.id)
+          return { name: p.name, net: Math.round(((Number(s.cashout) || 0) - (Number(s.buyin) || 0)) * 100) / 100 }
+        })
+
+        const total = Math.round(players_with_net.reduce((s, p) => s + p.net, 0) * 100) / 100
+        const winners = [...players_with_net].filter(p => p.net > 0).sort((a, b) => b.net - a.net)
+
+        let adjustments = {}, potNote = null
+        if (total < 0) {
+          potNote = { type: 'short', amt: Math.abs(total), winner: winners[0]?.name }
+        } else if (total > 0) {
+          potNote = { type: 'over', amt: total }
+          const gap = winners.length >= 2 ? winners[0].net - winners[1].net : Infinity
+          if (gap >= 25 || winners.length === 1) {
+            adjustments[winners[0].name] = total
+            potNote.split = [{ name: winners[0].name, deduct: total }]
+          } else {
+            const each = Math.round((total / winners.length) * 100) / 100
+            winners.forEach(w => { adjustments[w.name] = each })
+            potNote.split = winners.map(w => ({ name: w.name, deduct: each }))
+          }
+        }
+
+        const bal = players_with_net.map(p => ({ name: p.name, b: Math.round((p.net - (adjustments[p.name] || 0)) * 100) / 100 }))
+        const txns = []
+        for (let i = 0; i < 50; i++) {
+          const creds = bal.filter(p => p.b > 0.005).sort((a, b) => b.b - a.b)
+          const debts = bal.filter(p => p.b < -0.005).sort((a, b) => a.b - b.b)
+          if (!creds.length || !debts.length) break
+          const c = creds[0], d = debts[0]
+          const amt = Math.round(Math.min(c.b, -d.b) * 100) / 100
+          txns.push({ from: d.name, to: c.name, amt })
+          c.b = Math.round((c.b - amt) * 100) / 100
+          d.b = Math.round((d.b + amt) * 100) / 100
+        }
+
+        return (
+          <div className="card p-4 space-y-4">
+            {/* Profits / Losses */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Preview</p>
+              <div className="space-y-1.5">
+                {players_with_net.map((p) => (
+                  <div key={p.name} className="flex justify-between text-sm">
+                    <span className="text-gray-300">{p.name}</span>
+                    <span className={`font-mono font-semibold ${p.net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {p.net >= 0 ? '+' : ''}${p.net.toFixed(2)}
+                    </span>
+                  </div>
+                ))}
               </div>
-            )
-          })()}
-        </div>
-      )}
+
+              {/* Pot status */}
+              <div className={`mt-3 pt-3 border-t border-gray-700 text-sm font-semibold text-center ${
+                !potNote ? 'text-green-400' : 'text-yellow-400'
+              }`}>
+                {!potNote
+                  ? 'Profits and Losses are correct'
+                  : potNote.type === 'short'
+                    ? `Pot off by -$${potNote.amt.toFixed(2)} — no adjustment needed`
+                    : `Pot off by +$${potNote.amt.toFixed(2)}`}
+              </div>
+            </div>
+
+            {/* Settlements */}
+            {txns.length > 0 && (
+              <div className="border-t border-gray-700 pt-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Settlements</p>
+                <div className="space-y-2">
+                  {txns.map((t, i) => (
+                    <div key={i} className="text-sm text-gray-300">
+                      <span className="text-red-400 font-medium">{t.from}</span>
+                      {' owes '}
+                      <span className="text-green-400 font-medium">{t.to}</span>
+                      {' '}
+                      <span className="font-mono font-semibold text-white">${t.amt.toFixed(2)}</span>
+                      <span className="text-gray-500"> via {paymentMethod(t.from, t.to)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Pot adjustment notes */}
+                {potNote?.type === 'over' && (
+                  <div className="mt-3 space-y-1">
+                    {potNote.split.map(s => {
+                      const orig = players_with_net.find(p => p.name === s.name).net
+                      return (
+                        <p key={s.name} className="text-xs text-yellow-400">
+                          ⚡ {s.name} collects ${(orig - s.deduct).toFixed(2)} (not ${orig.toFixed(2)}, down ${s.deduct.toFixed(2)})
+                        </p>
+                      )
+                    })}
+                  </div>
+                )}
+                {potNote?.type === 'short' && (
+                  <p className="mt-3 text-xs text-yellow-400">
+                    ⚡ {potNote.winner} collects ${potNote.amt.toFixed(2)} less due to pot shortage
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       <button type="submit" disabled={loading || activePlayers.length === 0} className="btn-primary w-full py-3 text-base">
         {loading ? 'Saving...' : '💾 Log Session'}
