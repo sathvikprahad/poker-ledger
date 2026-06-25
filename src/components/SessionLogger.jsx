@@ -289,17 +289,18 @@ export default function SessionLogger({ players, onDataChange }) {
             adjustments[winners[0].name] = total
             potNote.split = [{ name: winners[0].name, deduct: total }]
           } else {
-            // Cascade $1 at a time from highest to lowest winner, cycling until fully covered
             const deductions = {}
             winners.forEach(w => { deductions[w.name] = 0 })
-            let remaining = Math.round(total * 100)
-            let i = 0
-            while (remaining >= 100) {
-              deductions[winners[i % winners.length].name] += 1
-              remaining -= 100
-              i++
+            // Top winner absorbs up to $1 first
+            const topTake = Math.min(1, Math.round(total * 100) / 100)
+            deductions[winners[0].name] = topTake
+            let remaining = Math.round((total - topTake) * 100) / 100
+            // Remaining split evenly among other winners (each capped at $1)
+            if (remaining > 0 && winners.length > 1) {
+              const others = winners.slice(1)
+              const each = Math.round((remaining / others.length) * 100) / 100
+              others.forEach(w => { deductions[w.name] = each })
             }
-            if (remaining > 0) deductions[winners[0].name] += remaining / 100
             winners.forEach(w => { if (deductions[w.name] > 0) adjustments[w.name] = deductions[w.name] })
             potNote.split = winners.filter(w => deductions[w.name] > 0).map(w => ({ name: w.name, deduct: deductions[w.name] }))
           }
