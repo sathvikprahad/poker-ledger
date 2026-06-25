@@ -278,6 +278,22 @@ export default function SessionLogger({ players, onDataChange }) {
               )
             })}
           </div>
+          {(() => {
+            const total = activePlayers.reduce((sum, p) => {
+              const s = getState(p.id)
+              return sum + ((Number(s.cashout) || 0) - (Number(s.buyin) || 0))
+            }, 0)
+            const diff = Math.round(total * 100) / 100
+            return (
+              <div className={`mt-3 pt-3 border-t border-gray-700 text-sm font-semibold text-center ${
+                diff === 0 ? 'text-green-400' : 'text-yellow-400'
+              }`}>
+                {diff === 0
+                  ? 'Profits and Losses are correct'
+                  : `Pot off by ${diff > 0 ? '+' : '-'}$${Math.abs(diff).toFixed(2)}`}
+              </div>
+            )
+          })()}
         </div>
       )}
 
