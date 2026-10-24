@@ -69,7 +69,7 @@ export const computePlayerStats = (playerId, sessions) => {
   return { totalProfit, sessionsPlayed, avgProfit, bestSession, worstSession, streak }
 }
 
-export const CORE_MEMBERS = new Set(['Arjun', 'Robin', 'Sathvik', 'Shirish', 'Drinu', 'Dishi', 'Dudy', 'Roshan', 'Rohan'])
+export const CORE_MEMBERS = new Set(['Arjun', 'Robin', 'Sathvik', 'Shirish', 'Drinu', 'Dishi', 'Dudy', 'Roshan', 'Rohan', 'Nishant'])
 
 // A session counts as "core" only if every player in it is a core member —
 // one outside player anywhere in the session excludes the whole session.
