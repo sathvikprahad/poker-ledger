@@ -69,6 +69,13 @@ export const computePlayerStats = (playerId, sessions) => {
   return { totalProfit, sessionsPlayed, avgProfit, bestSession, worstSession, streak }
 }
 
+export const CORE_MEMBERS = new Set(['Arjun', 'Robin', 'Sathvik', 'Shirish', 'Drinu', 'Dishi', 'Dudy', 'Roshan', 'Rohan'])
+
+// A session counts as "core" only if every player in it is a core member —
+// one outside player anywhere in the session excludes the whole session.
+export const isCoreSession = (session) =>
+  (session.session_results || []).every((r) => CORE_MEMBERS.has(r.players?.name))
+
 const ZELLE_APPLE = new Set(['Dudy'])
 const APPLE_ONLY = new Set(['Drinu', 'Pranav'])
 
@@ -111,6 +118,10 @@ export const computeSettlement = (playersWithNet) => {
   }
 
   const bal = playersWithNet.map((p) => ({ name: p.name, b: Math.round((p.net - (adjustments[p.name] || 0)) * 100) / 100 }))
+  // Anyone whose final share is under $1 can't get their own Venmo/Apple Cash request —
+  // their payment has to be merged into someone else's. Recorded before the loop mutates `bal`.
+  const subDollarPlayers = bal.filter((p) => Math.abs(p.b) > 0.005 && Math.abs(p.b) < 1).map((p) => ({ name: p.name, net: p.b, amt: Math.abs(p.b) }))
+
   const txns = []
   for (let i = 0; i < 50; i++) {
     const creds = bal.filter((p) => p.b > 0.005).sort((a, b) => b.b - a.b)
@@ -123,7 +134,48 @@ export const computeSettlement = (playersWithNet) => {
     d.b = Math.round((d.b + amt) * 100) / 100
   }
 
-  return { total, potNote, txns }
+  const finalTxns = avoidSubDollarPayments(txns)
+  const subDollarNotes = subDollarPlayers.map((p) => {
+    const related = finalTxns.find((t) => t.from === p.name || t.to === p.name)
+    return {
+      ...p,
+      // merged: true if we found another payment to reroute through (related.group is set).
+      // false means nobody else's payment touches this person, so a sub-$1 transaction
+      // to them couldn't be avoided — related.amt will still be under $1.
+      merged: !!related?.group,
+      group: related?.group ?? null,
+    }
+  })
+
+  return { total, potNote, txns: finalTxns, subDollarNotes }
+}
+
+// Reroutes any payment under $1 through another payment that shares its payer or
+// recipient, so nobody ever has to send or request less than $1 on Venmo/Apple Cash.
+// Preserves everyone's exact total paid/received — only the path money takes changes.
+// Example: A owes C $3, B owes C $0.20 -> rerouted to A owes B $3, B owes C $3.20.
+// Every transaction touched by a reroute (including chains of them) shares a `group`
+// id, so the UI can visually link which payments belong to the same reroute.
+const avoidSubDollarPayments = (txns, minAmt = 1) => {
+  const eps = 0.005
+  let groupCounter = 0
+  for (let guard = 0; guard < txns.length * 2; guard++) {
+    const small = txns.find((t) => t.amt < minAmt - eps)
+    if (!small) break
+
+    const sameCreditor = txns.find((t) => t !== small && t.to === small.to && t.from !== small.from && t.amt >= minAmt - eps)
+    const relay = sameCreditor || txns.find((t) => t !== small && t.from === small.from && t.to !== small.to && t.amt >= minAmt - eps)
+    if (!relay) break // no payment to relay through — this person's own net is under $1, unavoidable
+
+    const group = small.group || relay.group || `reroute-${groupCounter++}`
+    small.group = group
+    relay.group = group
+
+    if (sameCreditor) relay.to = small.from
+    else relay.from = small.to
+    small.amt = Math.round((small.amt + relay.amt) * 100) / 100
+  }
+  return txns.filter((t) => t.amt > eps)
 }
 
 export const buildChartData = (sessions, players) => {

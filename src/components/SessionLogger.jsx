@@ -4,6 +4,15 @@ import { computeSettlement, paymentMethod } from '../lib/utils'
 
 const todayStr = () => new Date().toISOString().split('T')[0]
 
+// Colors cycled across distinct reroute groups so related (rerouted) settlement payments
+// can be visually traced even when several unrelated reroutes happen in the same session.
+const GROUP_COLORS = [
+  { border: 'border-indigo-500', text: 'text-indigo-400' },
+  { border: 'border-purple-500', text: 'text-purple-400' },
+  { border: 'border-pink-500', text: 'text-pink-400' },
+  { border: 'border-teal-500', text: 'text-teal-400' },
+]
+
 const DEFAULT_PLAYER_STATE = {
   active: false,
   buyin: '',
@@ -268,7 +277,7 @@ export default function SessionLogger({ players, onDataChange }) {
           return { name: p.name, net: Math.round(((Number(s.cashout) || 0) - (Number(s.buyin) || 0)) * 100) / 100 }
         })
 
-        const { potNote, txns } = computeSettlement(players_with_net)
+        const { potNote, txns, subDollarNotes } = computeSettlement(players_with_net)
 
         return (
           <div className="card p-4 space-y-4">
@@ -299,20 +308,35 @@ export default function SessionLogger({ players, onDataChange }) {
             </div>
 
             {/* Settlements */}
-            {txns.length > 0 && (
+            {txns.length > 0 && (() => {
+              const groupIds = [...new Set(txns.map((t) => t.group).filter(Boolean))]
+              const colorFor = (group) => GROUP_COLORS[groupIds.indexOf(group) % GROUP_COLORS.length]
+
+              return (
               <div className="border-t border-gray-700 pt-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Settlements</p>
                 <div className="space-y-2">
-                  {txns.map((t, i) => (
-                    <div key={i} className="text-sm text-gray-300">
-                      <span className="text-red-400 font-medium">{t.from}</span>
-                      {' owes '}
-                      <span className="text-green-400 font-medium">{t.to}</span>
-                      {' '}
-                      <span className="font-mono font-semibold text-white">${t.amt.toFixed(2)}</span>
-                      <span className="text-gray-500"> via {paymentMethod(t.from, t.to)}</span>
-                    </div>
-                  ))}
+                  {txns.map((t, i) => {
+                    const color = t.group ? colorFor(t.group) : null
+                    return (
+                      <div
+                        key={i}
+                        className={`text-sm text-gray-300 ${color ? `pl-2 border-l-2 ${color.border}` : ''}`}
+                      >
+                        {color && (
+                          <span className={`mr-1.5 text-xs font-semibold ${color.text}`} title="Rerouted to avoid a sub-$1 payment">
+                            🔗{groupIds.indexOf(t.group) + 1}
+                          </span>
+                        )}
+                        <span className="text-red-400 font-medium">{t.from}</span>
+                        {' owes '}
+                        <span className="text-green-400 font-medium">{t.to}</span>
+                        {' '}
+                        <span className="font-mono font-semibold text-white">${t.amt.toFixed(2)}</span>
+                        <span className="text-gray-500"> via {paymentMethod(t.from, t.to)}</span>
+                      </div>
+                    )
+                  })}
                 </div>
 
                 {/* Pot adjustment notes */}
@@ -333,8 +357,25 @@ export default function SessionLogger({ players, onDataChange }) {
                     ⚡ {potNote.winner} collects ${potNote.amt.toFixed(2)} less due to pot shortage
                   </p>
                 )}
+
+                {/* Sub-$1 explanation */}
+                {subDollarNotes.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {subDollarNotes.map((n) => {
+                      const color = n.group ? colorFor(n.group) : null
+                      return (
+                        <p key={n.name} className={`text-xs ${color ? color.text : 'text-yellow-400'}`}>
+                          {color ? `🔗${groupIds.indexOf(n.group) + 1}` : '⚠️'} {n.name} is only {n.net >= 0 ? 'up' : 'down'} ${n.amt.toFixed(2)} this session — payment apps won't do requests under $1, so {n.merged
+                            ? 'it\'s routed through the marked payment(s) above instead of its own transaction.'
+                            : "this one couldn't be merged with another payment, so it stays as its own transaction."}
+                        </p>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
-            )}
+              )
+            })()}
           </div>
         )
       })()}

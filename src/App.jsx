@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { supabase } from './lib/supabase'
+import { CORE_MEMBERS, isCoreSession } from './lib/utils'
 import Nav from './components/Nav'
 import Leaderboard from './components/Leaderboard'
 import PlayerStats from './components/PlayerStats'
@@ -25,7 +26,17 @@ export default function App() {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [viewpoint, setViewpoint] = useState('all') // 'all' | 'core' — shared across all public tabs
   const isFirstLoad = useRef(true)
+
+  const scopedSessions = useMemo(
+    () => viewpoint === 'core' ? sessions.filter(isCoreSession) : sessions,
+    [sessions, viewpoint]
+  )
+  const scopedPlayers = useMemo(
+    () => viewpoint === 'core' ? players.filter((p) => CORE_MEMBERS.has(p.name)) : players,
+    [players, viewpoint]
+  )
 
   const fetchData = useCallback(async () => {
     try {
@@ -93,10 +104,28 @@ export default function App() {
 
       {view === 'public' && (
         <main className="max-w-5xl mx-auto px-4 py-6">
-          {tab === 'leaderboard' && <Leaderboard players={players} sessions={sessions} />}
-          {tab === 'players' && <PlayerStats players={players} sessions={sessions} />}
-          {tab === 'sessions' && <SessionHistory sessions={sessions} />}
-          {tab === 'chart' && <ProfitChart players={players} sessions={sessions} />}
+          {tab !== 'gto' && (
+            <div className="inline-flex rounded-lg border border-gray-700 bg-gray-800/50 p-0.5 mb-5">
+              {[
+                { id: 'all', label: 'All Members' },
+                { id: 'core', label: 'Core Members' },
+              ].map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => setViewpoint(v.id)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                    viewpoint === v.id ? 'bg-green-700 text-white' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {tab === 'leaderboard' && <Leaderboard players={scopedPlayers} sessions={scopedSessions} />}
+          {tab === 'players' && <PlayerStats players={scopedPlayers} sessions={scopedSessions} />}
+          {tab === 'sessions' && <SessionHistory sessions={scopedSessions} />}
+          {tab === 'chart' && <ProfitChart players={scopedPlayers} sessions={scopedSessions} />}
           {tab === 'gto' && <GTO />}
         </main>
       )}

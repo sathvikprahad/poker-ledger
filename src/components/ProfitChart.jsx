@@ -59,8 +59,32 @@ function buildHeatmap(sessions) {
 
 export default function ProfitChart({ players, sessions }) {
   const [tab, setTab] = useState('line')
-  const lineData = useMemo(() => buildChartData(sessions, players), [sessions, players])
-  const barData = useMemo(() => buildSessionBar(sessions, players), [sessions, players])
+  const [excludedIds, setExcludedIds] = useState(new Set())
+  const [filterOpen, setFilterOpen] = useState(false)
+
+  const visiblePlayers = useMemo(
+    () => players.filter((p) => !excludedIds.has(p.id)),
+    [players, excludedIds]
+  )
+
+  // Colors are keyed by position in the full (unfiltered) list, so toggling the
+  // filter never reshuffles which color belongs to which remaining player.
+  const colorMap = useMemo(() => {
+    const m = new Map()
+    players.forEach((p, i) => m.set(p.id, COLORS[i % COLORS.length]))
+    return m
+  }, [players])
+
+  const togglePlayer = (id) => {
+    setExcludedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const lineData = useMemo(() => buildChartData(sessions, visiblePlayers), [sessions, visiblePlayers])
+  const barData = useMemo(() => buildSessionBar(sessions, visiblePlayers), [sessions, visiblePlayers])
   const heatmap = useMemo(() => buildHeatmap(sessions), [sessions])
 
   if (sessions.length === 0) {
@@ -88,6 +112,43 @@ export default function ProfitChart({ players, sessions }) {
         </div>
       </div>
 
+      {tab !== 'heat' && (
+        <div className="relative inline-block">
+          <button
+            onClick={() => setFilterOpen((o) => !o)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/60 text-sm text-gray-300 hover:border-gray-600"
+          >
+            👥 Players
+            <span className="text-gray-500">{visiblePlayers.length}/{players.length}</span>
+            <span className="text-gray-500">{filterOpen ? '▴' : '▾'}</span>
+          </button>
+
+          {filterOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setFilterOpen(false)} />
+              <div className="absolute z-20 mt-2 w-56 max-h-80 overflow-y-auto card p-2 shadow-2xl">
+                <div className="flex gap-2 px-1 pb-2 mb-1 border-b border-gray-800">
+                  <button onClick={() => setExcludedIds(new Set())} className="text-xs text-green-400 hover:text-green-300">Select all</button>
+                  <span className="text-gray-700">·</span>
+                  <button onClick={() => setExcludedIds(new Set(players.map((p) => p.id)))} className="text-xs text-gray-500 hover:text-gray-300">Clear</button>
+                </div>
+                {[...players].sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 px-1 py-1 rounded hover:bg-gray-800 cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!excludedIds.has(p.id)}
+                      onChange={() => togglePlayer(p.id)}
+                      className="accent-green-600"
+                    />
+                    <span className="text-gray-200 truncate">{p.name}</span>
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {tab === 'line' && (
         <div className="card p-4 sm:p-6">
           <div className="h-80 sm:h-96">
@@ -99,10 +160,10 @@ export default function ProfitChart({ players, sessions }) {
                 <ReferenceLine y={0} stroke="#374151" strokeDasharray="4 4" />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ paddingTop: '20px' }} formatter={(v) => <span style={{ color: '#9ca3af', fontSize: 12 }}>{v}</span>} />
-                {players.map((player, i) => (
+                {visiblePlayers.map((player) => (
                   <Line key={player.id} type="monotone" dataKey={player.id} name={player.name}
-                    stroke={COLORS[i % COLORS.length]} strokeWidth={2.5}
-                    dot={{ r: 4, strokeWidth: 0, fill: COLORS[i % COLORS.length] }}
+                    stroke={colorMap.get(player.id)} strokeWidth={2.5}
+                    dot={{ r: 4, strokeWidth: 0, fill: colorMap.get(player.id) }}
                     activeDot={{ r: 6, strokeWidth: 0 }} />
                 ))}
               </LineChart>
@@ -124,10 +185,10 @@ export default function ProfitChart({ players, sessions }) {
                 <ReferenceLine y={0} stroke="#374151" />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ paddingTop: '20px' }} formatter={(v) => <span style={{ color: '#9ca3af', fontSize: 12 }}>{v}</span>} />
-                {players.map((player, i) => (
-                  <Bar key={player.id} dataKey={player.id} name={player.name} fill={COLORS[i % COLORS.length]} radius={[3, 3, 0, 0]}>
+                {visiblePlayers.map((player) => (
+                  <Bar key={player.id} dataKey={player.id} name={player.name} fill={colorMap.get(player.id)} radius={[3, 3, 0, 0]}>
                     {barData.map((entry, idx) => (
-                      <Cell key={idx} fill={entry[player.id] >= 0 ? COLORS[i % COLORS.length] : COLORS[i % COLORS.length] + '99'} />
+                      <Cell key={idx} fill={entry[player.id] >= 0 ? colorMap.get(player.id) : colorMap.get(player.id) + '99'} />
                     ))}
                   </Bar>
                 ))}
